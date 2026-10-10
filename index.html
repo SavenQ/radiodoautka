@@ -51,7 +51,8 @@
 
   .left-panel-backdrop{position:absolute;inset:-24px;width:calc(100% + 48px);height:calc(100% + 48px);object-fit:cover;filter:blur(24px) brightness(.34) saturate(.8);opacity:.9;pointer-events:none;z-index:-2}
   .left-panel::before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(5,7,9,.42),rgba(5,7,9,.62));pointer-events:none;z-index:-1}
-  .left-panel > :not(.left-panel-backdrop){position:relative;z-index:0}
+  .left-panel > :not(.left-panel-backdrop):not(.big-picture-launch){position:relative;z-index:0}
+  .left-panel > .big-picture-launch{position:absolute;top:20px;left:20px;z-index:2}
 
   .player{position:relative;display:flex;width:100%;flex-direction:column;align-items:center;gap:8px;padding-top:52px;flex-shrink:0}
   .player-top{display:grid;align-self:center;width:100%;max-width:380px;grid-template-columns:minmax(0,220px) 148px;justify-content:center;align-items:center;gap:6px}
@@ -91,12 +92,16 @@
   .settings-color-label{margin:0}
   .settings-color-input{width:52px;height:40px;padding:3px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);cursor:pointer}
   .settings-reset-btn{min-height:40px;padding:0 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);color:var(--text);font-size:12px;font-weight:700;cursor:pointer}
-  .big-picture-launch{position:fixed;top:20px;left:20px;z-index:1100}
   .icon-btn svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:middle}
 
   .big-picture{
     position:fixed;
     inset:0;
+    left:50%;
+    right:auto;
+    width:min(100%,1024px);
+    height:min(100%,600px);
+    transform:translateX(-50%);
     z-index:1000;
     display:flex;
     flex-direction:column;
@@ -110,6 +115,7 @@
     overflow:hidden;
   }
   .big-picture.hidden{display:none}
+  .big-picture-close{position:absolute;top:20px;left:20px;z-index:3}
   .big-picture-backdrop{position:absolute;inset:-28px;width:calc(100% + 56px);height:calc(100% + 56px);object-fit:cover;filter:blur(28px) brightness(.34) saturate(.8);opacity:.9;pointer-events:none;z-index:0}
   .big-picture::after{content:"";position:absolute;inset:0;z-index:1;background:linear-gradient(180deg,rgba(5,7,9,.38),rgba(5,7,9,.58));pointer-events:none}
   .big-picture-refresh{position:absolute;top:20px;right:20px;z-index:3}
@@ -471,13 +477,13 @@
 </style>
 </head>
 <body>
-  <button id="bigPictureBtn" class="icon-btn big-picture-launch" title="Tryb Big Picture" aria-label="Otwórz tryb Big Picture">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3m13-5h3a2 2 0 0 1 2 2v3M3 16v3a2 2 0 0 0 2 2h3m13-5v3a2 2 0 0 1-2 2h-3"/></svg>
-  </button>
   <div class="app">
     <div class="main-layout">
       <aside class="left-panel">
         <img id="playerBackdrop" class="left-panel-backdrop hidden" alt="" aria-hidden="true">
+        <button id="bigPictureBtn" class="icon-btn big-picture-launch" title="Tryb Big Picture" aria-label="Otwórz tryb Big Picture">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3m13-5h3a2 2 0 0 1 2 2v3M3 16v3a2 2 0 0 0 2 2h3m13-5v3a2 2 0 0 1-2 2h-3"/></svg>
+        </button>
         <section class="player">
           <div class="player-top">
             <div class="station-art-wrap">
@@ -635,7 +641,7 @@
       </div>
       <div class="settings-color-row">
         <label class="settings-color-label" for="themeColorInput">Kolor przewodni i tło</label>
-        <input id="themeColorInput" class="settings-color-input" type="color" value="#f2f2f2" aria-label="Wybierz kolor motywu">
+        <input id="themeColorInput" class="settings-color-input" type="color" value="#0b0d10" aria-label="Wybierz kolor motywu">
         <button id="resetThemeBtn" class="settings-reset-btn" type="button">Resetuj</button>
       </div>
     </div>
@@ -643,6 +649,7 @@
 
   <section id="bigPicture" class="big-picture hidden" aria-label="Odtwarzacz Big Picture" aria-hidden="true">
     <img id="bigPictureBackdrop" class="big-picture-backdrop hidden" alt="" aria-hidden="true">
+    <button id="bigPictureClose" class="icon-btn big-picture-close" title="Zamknij Big Picture" aria-label="Zamknij Big Picture">×</button>
     <button id="bigPictureRefresh" class="icon-btn big-picture-refresh" title="Odśwież aplikację" aria-label="Odśwież aplikację">↻</button>
     <button id="bigPictureFavorite" class="icon-btn big-picture-favorite" title="Ulubione" aria-label="Dodaj stację do ulubionych">♡</button>
     <div class="big-picture-main">
