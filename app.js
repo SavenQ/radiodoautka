@@ -19,9 +19,11 @@ const connectionStatusEl = document.getElementById("connectionStatus");
 const playBtn = document.getElementById("playBtn");
 const playIconSvg = document.getElementById("playIconSvg");
 const favoriteCurrentBtn = document.getElementById("favoriteCurrent");
+const refreshBtn = document.getElementById("refreshBtn");
 
 let stations = [];
 let currentIndex = -1;
+let currentPlayingUuid = null;
 let activeBase = null;
 let currentTab = "poland";
 let currentLimit = 50;
@@ -66,7 +68,7 @@ function toggleFavorite(uuid) {
     favourites = favourites.filter(x => x !== uuid);
   } else {
     favourites.push(uuid);
-    const found = stations.find(s => s.stationuuid === uuid);
+    const found = stations.find(s => s.stationuuid === uuid) || stationCache[uuid];
     if (found) {
       stationCache[uuid] = found;
       saveCache();
@@ -79,12 +81,12 @@ function toggleFavorite(uuid) {
 }
 
 function updateCurrentFavorite() {
-  if (currentIndex < 0 || !stations[currentIndex]) {
+  if (!currentPlayingUuid) {
     favoriteCurrentBtn.textContent = "♡";
     favoriteCurrentBtn.classList.remove("active");
     return;
   }
-  const active = isFavorite(stations[currentIndex].stationuuid);
+  const active = isFavorite(currentPlayingUuid);
   favoriteCurrentBtn.textContent = active ? "♥" : "♡";
   favoriteCurrentBtn.classList.toggle("active", active);
 }
@@ -179,23 +181,34 @@ async function loadStationsData(append = false) {
 
 function renderFavoritesBar() {
   if (!favourites.length) {
-    favoritesBarEl.innerHTML = '<div style="color:var(--muted);font-size:12px;display:flex;align-items:center;padding:0 4px;">Brak ulubionych</div>';
+    favoritesBarEl.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:4px;">Brak ulubionych</div>';
     return;
   }
 
   const html = favourites.map(uuid => {
     const station = stationCache[uuid];
-    if (!station) return `<div class="fav-chip" data-uuid="${escapeHtml(uuid)}" title="Ładowanie..."><span class="fav-chip-fallback">♪</span></div>`;
+    if (!station) {
+      return `
+        <div class="fav-chip" data-uuid="${escapeHtml(uuid)}" draggable="true" title="Ładowanie...">
+          <div class="fav-logo-fallback-bg">♪</div>
+          <div class="fav-overlay"><div class="fav-name">Ładowanie...</div></div>
+        </div>`;
+    }
     
-    const logo = station.favicon
-      ? `<img src="${escapeHtml(station.favicon)}" alt="" onerror="this.outerHTML='<span class=&quot;fav-chip-fallback&quot;>♪</span>'">`
-      : `<span class="fav-chip-fallback">♪</span>`;
+    const logoBg = station.favicon
+      ? `<img class="fav-logo-bg" src="${escapeHtml(station.favicon)}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+         <div class="fav-logo-fallback-bg" style="display:none">♪</div>`
+      : `<div class="fav-logo-fallback-bg">♪</div>`;
       
-    const isActive = currentIndex >= 0 && stations[currentIndex]?.stationuuid === uuid;
+    const isActive = station.stationuuid === currentPlayingUuid;
+    const name = station.name || "Stacja";
 
     return `
-      <div class="fav-chip ${isActive ? "active" : ""}" data-uuid="${escapeHtml(uuid)}" title="${escapeHtml(station.name || "Stacja")}">
-        ${logo}
+      <div class="fav-chip ${isActive ? "active" : ""}" data-uuid="${escapeHtml(uuid)}" draggable="true" title="${escapeHtml(name)}">
+        ${logoBg}
+        <div class="fav-overlay">
+          <div class="fav-name">${escapeHtml(name)}</div>
+        </div>
       </div>`;
   }).join("");
 
@@ -203,6 +216,7 @@ function renderFavoritesBar() {
 }
 
 favoritesBarEl.onclick = (e) => {
+  if (wasDragging) return;
   const chip = e.target.closest(".fav-chip");
   if (!chip) return;
   const uuid = chip.dataset.uuid;
@@ -224,19 +238,23 @@ function renderStations() {
 
   let html = stations.map((s, index) => {
     const fav = isFavorite(s.stationuuid);
-    const active = currentIndex === index;
-    const logo = s.favicon
-      ? `<img class="card-logo" src="${escapeHtml(s.favicon)}" alt="" onerror="this.outerHTML='<div class=&quot;card-logo-fallback&quot;>♪</div>'">`
-      : `<div class="card-logo-fallback">♪</div>`;
-    const meta = [s.countrycode, s.codec, s.bitrate ? `${s.bitrate} kbps` : ""].filter(Boolean).join(" • ");
+    const active = s.stationuuid === currentPlayingUuid;
+    
+    const logoBg = s.favicon
+      ? `<img class="card-logo-bg" src="${escapeHtml(s.favicon)}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+         <div class="card-logo-fallback-bg" style="display:none">♪</div>`
+      : `<div class="card-logo-fallback-bg">♪</div>`;
+      
+    const meta = [s.codec, s.bitrate ? `${s.bitrate} kbps` : ""].filter(Boolean).join(" • ");
+    
     return `
       <div class="station-card ${active ? "active" : ""}" data-index="${index}">
-        ${logo}
-        <div class="card-copy">
-          <div class="card-name">${escapeHtml(s.name || "Bez nazwy")}</div>
-          <div class="card-sub">${escapeHtml(meta || s.tags || "Radio internetowe")}</div>
-        </div>
-        <div class="card-actions">
+        ${logoBg}
+        <div class="card-overlay">
+          <div class="card-copy">
+            <div class="card-name" title="${escapeHtml(s.name || "Bez nazwy")}">${escapeHtml(s.name || "Bez nazwy")}</div>
+            <div class="card-sub">${escapeHtml(meta || s.countrycode || "Radio")}</div>
+          </div>
           <button class="card-fav ${fav ? "active" : ""}" data-fav="${escapeHtml(s.stationuuid)}" title="Ulubione">${fav ? "♥" : "♡"}</button>
         </div>
       </div>`;
@@ -285,6 +303,7 @@ async function countClick(station) {
 function prepareStation(index, autoPlay = false) {
   if (!stations[index]) return;
   currentIndex = index;
+  currentPlayingUuid = stations[index].stationuuid;
   prepareStationObject(stations[index], autoPlay);
 }
 
@@ -292,12 +311,12 @@ function prepareFavoriteByUuid(uuid, autoPlay = false) {
   const station = stationCache[uuid];
   if (!station) return;
   
+  currentPlayingUuid = uuid;
   let idx = stations.findIndex(s => s.stationuuid === uuid);
   if (idx !== -1) {
     currentIndex = idx;
   } else {
-    stations.unshift(station);
-    currentIndex = 0;
+    currentIndex = -1;
   }
   prepareStationObject(station, autoPlay);
 }
@@ -313,11 +332,20 @@ function prepareStationObject(station, autoPlay = false) {
   localStorage.setItem("carRadioLastPlayed", station.stationuuid);
   stationNameEl.textContent = station.name || "Bez nazwy";
   stationMetaEl.textContent = [station.countrycode, station.codec, station.bitrate ? `${station.bitrate} kbps` : ""].filter(Boolean).join(" • ");
-  updateLogo(station.favicon);
+  
+  if (station.favicon) {
+    stationLogo.style.display = "block";
+    stationLogo.src = station.favicon;
+    stationLogoFallback.style.display = "none";
+  } else {
+    stationLogo.style.display = "none";
+    stationLogoFallback.style.display = "flex";
+  }
+
   updateCurrentFavorite();
+  renderFavoritesBar();
   renderStations();
 
-  // -> TUTAJ NATYCHMIAST USTAWIAJ KOMUNIKATY (PRZED AUDIO.PLAY) <-
   streamStatusEl.textContent = "Ładowanie...";
   nowPlayingEl.textContent = "Ładowanie strumienia...";
 
@@ -345,10 +373,9 @@ function prepareStationObject(station, autoPlay = false) {
   }
 }
 
-// Zdarzenia odtwarzвача informujące o stanie sieci/strumienia
 audio.addEventListener('waiting', () => {
   streamStatusEl.textContent = "Ładowanie / Buforowanie...";
-  nowPlayingEl.textContent = "Pobieranie danych ze stacji...";
+  nowPlayingEl.textContent = "Pobieranie danych...";
 });
 
 audio.addEventListener('playing', () => {
@@ -357,11 +384,10 @@ audio.addEventListener('playing', () => {
   nowPlayingEl.textContent = "Na żywo";
 });
 
-audio.addEventListener('error', (e) => {
+audio.addEventListener('error', () => {
   setPlayIcon(false);
-  streamStatusEl.textContent = "Błąd strumienia (HTTP/HTTPS?)";
-  nowPlayingEl.textContent = "Stacja niedostępna lub zablokowana";
-  console.error("Audio error:", audio.error);
+  streamStatusEl.textContent = "Błąd strumienia";
+  nowPlayingEl.textContent = "Stacja niedostępna";
 });
 
 function setupMediaSession(station) {
@@ -373,47 +399,66 @@ function setupMediaSession(station) {
       artwork: station.favicon ? [{ src: station.favicon, sizes: '96x96 128x128 192x192 512x512', type: 'image/png' }] : []
     });
 
-    navigator.mediaSession.setActionHandler('play', () => { audio.play(); setPlayIcon(true); streamStatusEl.textContent = "Odtwarzanie"; });
-    navigator.mediaSession.setActionHandler('pause', () => { audio.pause(); setPlayIcon(false); streamStatusEl.textContent = "Wstrzymano"; });
+    navigator.mediaSession.setActionHandler('play', () => { audio.play(); setPlayIcon(true); });
+    navigator.mediaSession.setActionHandler('pause', () => { audio.pause(); setPlayIcon(false); });
     navigator.mediaSession.setActionHandler('previoustrack', () => playFavoriteOffset(-1));
     navigator.mediaSession.setActionHandler('nexttrack', () => playFavoriteOffset(1));
   }
 }
 
-function updateLogo(url) {
-  if (!url) {
-    stationLogo.style.display = "none";
-    stationLogoFallback.style.display = "flex";
-    return;
-  }
-  stationLogo.src = url;
-  stationLogo.onload = () => {
-    stationLogo.style.display = "block";
-    stationLogoFallback.style.display = "none";
-  };
-  stationLogo.onerror = () => {
-    stationLogo.style.display = "none";
-    stationLogoFallback.style.display = "flex";
-  };
-}
-
 function playFavoriteOffset(offset) {
   if (!favourites.length) return;
-  
-  let currentUuid = null;
-  if (currentIndex >= 0 && stations[currentIndex]) {
-    currentUuid = stations[currentIndex].stationuuid;
-  }
-  
-  let favIndex = favourites.indexOf(currentUuid);
+  let favIndex = favourites.indexOf(currentPlayingUuid);
   if (favIndex === -1) {
     favIndex = 0;
   } else {
     favIndex = (favIndex + offset + favourites.length) % favourites.length;
   }
-  
   prepareFavoriteByUuid(favourites[favIndex], true);
 }
+
+// ---- OBSŁUGA PRZECIĄGANIA I PRZEWIJANIA ULUBIONYCH ----
+let draggedUuid = null;
+let wasDragging = false;
+
+favoritesBarEl.addEventListener("dragstart", (e) => {
+  const chip = e.target.closest(".fav-chip");
+  if (!chip) return;
+  draggedUuid = chip.dataset.uuid;
+  wasDragging = true;
+  chip.classList.add("dragging");
+  e.dataTransfer.effectAllowed = "move";
+});
+
+favoritesBarEl.addEventListener("dragover", (e) => {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = "move";
+  const targetChip = e.target.closest(".fav-chip");
+  if (!targetChip || !draggedUuid) return;
+
+  const targetUuid = targetChip.dataset.uuid;
+  if (targetUuid === draggedUuid) return;
+
+  const oldIndex = favourites.indexOf(draggedUuid);
+  const newIndex = favourites.indexOf(targetUuid);
+
+  if (oldIndex !== -1 && newIndex !== -1) {
+    favourites.splice(oldIndex, 1);
+    favourites.splice(newIndex, 0, draggedUuid);
+    saveFavorites();
+    renderFavoritesBar();
+  }
+});
+
+favoritesBarEl.addEventListener("dragend", (e) => {
+  const chip = e.target.closest(".fav-chip");
+  if (chip) chip.classList.remove("dragging");
+  draggedUuid = null;
+  setTimeout(() => {
+    wasDragging = false;
+  }, 150);
+});
+// ------------------------------------------------------------------------
 
 async function init() {
   audio.volume = 0.9;
@@ -422,10 +467,11 @@ async function init() {
   try {
     await loadStationsData(false);
   } catch (e) {
-    stationsEl.innerHTML = '<div class="empty">Nie udało się pobrać stacji. Sprawdź internet i spróbuj ponownie.</div>';
+    stationsEl.innerHTML = '<div class="empty">Nie udało się pobrać stacji. Sprawdź internet.</div>';
   }
 
   if (lastPlayedUuid) {
+    currentPlayingUuid = lastPlayedUuid;
     if (stationCache[lastPlayedUuid]) {
       prepareFavoriteByUuid(lastPlayedUuid, false);
     } else {
@@ -456,7 +502,7 @@ async function init() {
 }
 
 playBtn.addEventListener("click", () => {
-  if (!audio.src) {
+  if (!audio.src || audio.src === window.location.href) {
     if (favourites.length > 0) {
       prepareFavoriteByUuid(favourites[0], true);
     } else if (stations.length > 0) {
@@ -468,10 +514,17 @@ playBtn.addEventListener("click", () => {
     audio.play().then(() => {
       setPlayIcon(true);
       streamStatusEl.textContent = "Odtwarzanie";
-      if (currentIndex >= 0 && stations[currentIndex]) {
-        countClick(stations[currentIndex]);
+      nowPlayingEl.textContent = "Na żywo";
+      if (currentPlayingUuid && stationCache[currentPlayingUuid]) {
+        countClick(stationCache[currentPlayingUuid]);
       }
-    }).catch(() => {});
+    }).catch(() => {
+      audio.load();
+      audio.play().then(() => {
+        setPlayIcon(true);
+        streamStatusEl.textContent = "Odtwarzanie";
+      }).catch(() => {});
+    });
   } else {
     audio.pause();
     setPlayIcon(false);
@@ -481,23 +534,30 @@ playBtn.addEventListener("click", () => {
 
 document.getElementById("stopBtn").addEventListener("click", () => {
   audio.pause();
-  audio.removeAttribute("src");
-  audio.load();
+  audio.currentTime = 0;
   setPlayIcon(false);
   streamStatusEl.textContent = "Zatrzymano";
-  nowPlayingEl.textContent = "Gotowe do odtwarzania";
+  nowPlayingEl.textContent = "Gotowe do wznowienia";
 });
+
+if (refreshBtn) {
+  refreshBtn.addEventListener("click", () => {
+    streamStatusEl.textContent = "Odświeżanie...";
+    location.reload();
+  });
+}
 
 document.getElementById("nextBtn").addEventListener("click", () => playFavoriteOffset(1));
 document.getElementById("prevBtn").addEventListener("click", () => playFavoriteOffset(-1));
 
 favoriteCurrentBtn.addEventListener("click", () => {
-  if (currentIndex >= 0 && stations[currentIndex]) toggleFavorite(stations[currentIndex].stationuuid);
+  if (currentPlayingUuid) toggleFavorite(currentPlayingUuid);
 });
 
-document.querySelectorAll(".tab").forEach(tab => {
+document.querySelectorAll(".tabs .tab").forEach(tab => {
+  if (tab.id === "refreshBtn") return;
   tab.addEventListener("click", async () => {
-    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+    document.querySelectorAll(".tabs .tab").forEach(t => t.classList.remove("active"));
     tab.classList.add("active");
     currentTab = tab.dataset.tab;
     
