@@ -24,6 +24,8 @@ let stations = [];
 let currentIndex = -1;
 let activeBase = null;
 let currentTab = "poland";
+let currentLimit = 50;
+
 let favourites = JSON.parse(localStorage.getItem("carRadioFavorites") || "[]");
 let stationCache = JSON.parse(localStorage.getItem("carRadioCache") || "{}");
 let lastPlayedUuid = localStorage.getItem("carRadioLastPlayed") || null;
@@ -46,17 +48,13 @@ function setStatus(text, good = false) {
 function saveCache() {
   try {
     localStorage.setItem("carRadioCache", JSON.stringify(stationCache));
-  } catch (e) {
-    console.warn("Cache storage quota exceeded", e);
-  }
+  } catch (e) {}
 }
 
 function saveFavorites() {
   try {
     localStorage.setItem("carRadioFavorites", JSON.stringify(favourites));
-  } catch (e) {
-    console.warn("Favorites storage quota exceeded", e);
-  }
+  } catch (e) {}
 }
 
 function isFavorite(uuid) {
@@ -125,58 +123,57 @@ function buildSearchPath(params = {}) {
   return "/json/stations/search?" + q.toString();
 }
 
-async function loadPoland() {
-  sectionTitleEl.textContent = "Stacje z Polski";
-  const data = await fetchFromApi(buildSearchPath({
-    countrycode: "PL",
-    hidebroken: true,
-    order: "clickcount",
-    reverse: true,
-    limit: 50
-  }));
-  stations = (Array.isArray(data) ? data : []).filter(s => s.lastcheckok !== 0 && (s.url_resolved || s.url));
-  renderStations();
-}
+async function loadStationsData(append = false) {
+  if (!append) {
+    currentLimit = 50;
+  }
 
-async function loadPopular() {
-  sectionTitleEl.textContent = "Popularne (Europa)";
-  const data = await fetchFromApi(buildSearchPath({
-    tag: "music",
-    continent: "Europe",
-    hidebroken: true,
-    order: "clickcount",
-    reverse: true,
-    limit: 50
-  }));
-  stations = (Array.isArray(data) ? data : []).filter(s => s.lastcheckok !== 0 && (s.url_resolved || s.url));
-  renderStations();
-}
+  let data = [];
+  if (currentTab === "poland") {
+    sectionTitleEl.textContent = "Stacje z Polski";
+    data = await fetchFromApi(buildSearchPath({
+      countrycode: "PL",
+      hidebroken: true,
+      order: "clickcount",
+      reverse: true,
+      limit: currentLimit
+    }));
+  } else if (currentTab === "popular") {
+    sectionTitleEl.textContent = "Popularne (Europa)";
+    data = await fetchFromApi(buildSearchPath({
+      tag: "music",
+      continent: "Europe",
+      hidebroken: true,
+      order: "clickcount",
+      reverse: true,
+      limit: currentLimit
+    }));
+  } else if (currentTab === "filters") {
+    sectionTitleEl.textContent = `Filtry: ${selectedTag.toUpperCase()}`;
+    data = await fetchFromApi(buildSearchPath({
+      tag: selectedTag,
+      hidebroken: true,
+      order: selectedSort,
+      reverse: selectedReverse,
+      limit: currentLimit
+    }));
+  } else if (currentTab === "search") {
+    const term = document.getElementById("searchInput").value.trim();
+    if (!term) return;
+    sectionTitleEl.textContent = `Wyniki: ${term}`;
+    data = await fetchFromApi(buildSearchPath({
+      name: term,
+      hidebroken: true,
+      order: "clickcount",
+      reverse: true,
+      limit: currentLimit
+    }));
+  }
 
-async function loadFilteredStations() {
-  sectionTitleEl.textContent = `Filtry: ${selectedTag.toUpperCase()}`;
-  const data = await fetchFromApi(buildSearchPath({
-    tag: selectedTag,
-    hidebroken: true,
-    order: selectedSort,
-    reverse: selectedReverse,
-    limit: 50
-  }));
-  stations = (Array.isArray(data) ? data : []).filter(s => s.lastcheckok !== 0 && (s.url_resolved || s.url));
-  renderStations();
-}
-
-async function searchStations() {
-  const term = document.getElementById("searchInput").value.trim();
-  if (!term) return;
-  sectionTitleEl.textContent = `Wyniki: ${term}`;
-  const data = await fetchFromApi(buildSearchPath({
-    name: term,
-    hidebroken: true,
-    order: "clickcount",
-    reverse: true,
-    limit: 50
-  }));
-  stations = (Array.isArray(data) ? data : []).filter(s => s.lastcheckok !== 0 && (s.url_resolved || s.url));
+  stations = (Array.isArray(data) ? data : [])
+    .filter(s => s.lastcheckok !== 0 && (s.url_resolved || s.url))
+    .slice(0, currentLimit);
+    
   renderStations();
 }
 
@@ -225,7 +222,7 @@ function renderStations() {
     return;
   }
 
-  const html = stations.map((s, index) => {
+  let html = stations.map((s, index) => {
     const fav = isFavorite(s.stationuuid);
     const active = currentIndex === index;
     const logo = s.favicon
@@ -245,10 +242,24 @@ function renderStations() {
       </div>`;
   }).join("");
 
+  html += `<button id="loadMoreBtn" class="load-more-btn">Załaduj kolejne 20 stacji (aktualnie: ${stations.length})</button>`;
   stationsEl.innerHTML = html;
+
+  document.getElementById("loadMoreBtn").addEventListener("click", async () => {
+    currentLimit += 20;
+    const btn = document.getElementById("loadMoreBtn");
+    btn.textContent = "Ładowanie...";
+    try {
+      await loadStationsData(true);
+    } catch {
+      btn.textContent = "Błąd pobierania. Spróbuj ponownie.";
+    }
+  });
 }
 
 stationsEl.onclick = (e) => {
+  if (e.target.closest("#loadMoreBtn")) return;
+
   const favBtn = e.target.closest(".card-fav");
   if (favBtn) {
     e.stopPropagation();
@@ -295,6 +306,7 @@ function prepareStationObject(station, autoPlay = false) {
   const url = station.url_resolved || station.url;
   if (!url) {
     nowPlayingEl.textContent = "Brak poprawnego adresu streamu";
+    streamStatusEl.textContent = "Błąd adresu";
     return;
   }
 
@@ -304,6 +316,10 @@ function prepareStationObject(station, autoPlay = false) {
   updateLogo(station.favicon);
   updateCurrentFavorite();
   renderStations();
+
+  // -> TUTAJ NATYCHMIAST USTAWIAJ KOMUNIKATY (PRZED AUDIO.PLAY) <-
+  streamStatusEl.textContent = "Ładowanie...";
+  nowPlayingEl.textContent = "Ładowanie strumienia...";
 
   audio.pause();
   audio.src = url;
@@ -316,17 +332,37 @@ function prepareStationObject(station, autoPlay = false) {
       nowPlayingEl.textContent = "Na żywo";
       countClick(station);
       setupMediaSession(station);
-    }).catch(() => {
+    }).catch((err) => {
       setPlayIcon(false);
-      streamStatusEl.textContent = "Wstrzymano";
-      nowPlayingEl.textContent = "Gotowe do odtwarzania";
+      streamStatusEl.textContent = "Zablokowane / Błąd HTTP";
+      nowPlayingEl.textContent = "Kliknij Play, aby uruchomić";
+      console.error("Autoplay error:", err);
     });
   } else {
     setPlayIcon(false);
-    streamStatusEl.textContent = "Gotowe do startu";
-    nowPlayingEl.textContent = "Gotowe do odtwarzania";
+    streamStatusEl.textContent = "Gotowe";
+    nowPlayingEl.textContent = "Naciśnij Play";
   }
 }
+
+// Zdarzenia odtwarzвача informujące o stanie sieci/strumienia
+audio.addEventListener('waiting', () => {
+  streamStatusEl.textContent = "Ładowanie / Buforowanie...";
+  nowPlayingEl.textContent = "Pobieranie danych ze stacji...";
+});
+
+audio.addEventListener('playing', () => {
+  setPlayIcon(true);
+  streamStatusEl.textContent = "Odtwarzanie";
+  nowPlayingEl.textContent = "Na żywo";
+});
+
+audio.addEventListener('error', (e) => {
+  setPlayIcon(false);
+  streamStatusEl.textContent = "Błąd strumienia (HTTP/HTTPS?)";
+  nowPlayingEl.textContent = "Stacja niedostępna lub zablokowana";
+  console.error("Audio error:", audio.error);
+});
 
 function setupMediaSession(station) {
   if ('mediaSession' in navigator) {
@@ -384,7 +420,7 @@ async function init() {
   renderFavoritesBar();
 
   try {
-    await loadPoland();
+    await loadStationsData(false);
   } catch (e) {
     stationsEl.innerHTML = '<div class="empty">Nie udało się pobrać stacji. Sprawdź internet i spróbuj ponownie.</div>';
   }
@@ -469,13 +505,12 @@ document.querySelectorAll(".tab").forEach(tab => {
     document.getElementById("filterPanel").classList.toggle("hidden", currentTab !== "filters");
 
     try {
-      if (currentTab === "poland") await loadPoland();
-      if (currentTab === "popular") await loadPopular();
-      if (currentTab === "filters") await loadFilteredStations();
       if (currentTab === "search") {
         sectionTitleEl.textContent = "Wyszukaj stację";
         stationsEl.innerHTML = '<div class="empty">Wpisz nazwę stacji powyżej.</div>';
         resultCountEl.textContent = "0";
+      } else {
+        await loadStationsData(false);
       }
     } catch {
       stationsEl.innerHTML = '<div class="empty">Błąd pobierania danych.</div>';
@@ -489,7 +524,7 @@ document.querySelectorAll("#tagFilters .filter-btn").forEach(btn => {
     btn.classList.add("active");
     selectedTag = btn.dataset.tag;
     if (currentTab === "filters") {
-      try { await loadFilteredStations(); } catch {}
+      try { await loadStationsData(false); } catch {}
     }
   });
 });
@@ -501,14 +536,14 @@ document.querySelectorAll("#popularityFilters .filter-btn").forEach(btn => {
     selectedSort = btn.dataset.sort;
     selectedReverse = btn.dataset.reverse === "true";
     if (currentTab === "filters") {
-      try { await loadFilteredStations(); } catch {}
+      try { await loadStationsData(false); } catch {}
     }
   });
 });
 
-document.getElementById("searchBtn").addEventListener("click", searchStations);
+document.getElementById("searchBtn").addEventListener("click", () => loadStationsData(false));
 document.getElementById("searchInput").addEventListener("keydown", e => {
-  if (e.key === "Enter") searchStations();
+  if (e.key === "Enter") loadStationsData(false);
 });
 
 init();
