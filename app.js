@@ -417,7 +417,6 @@ function playFavoriteOffset(offset) {
   prepareFavoriteByUuid(favourites[favIndex], true);
 }
 
-// ---- OBSŁUGA PRZECIĄGANIA I PRZEWIJANIA ULUBIONYCH ----
 let draggedUuid = null;
 let wasDragging = false;
 
