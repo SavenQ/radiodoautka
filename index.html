@@ -95,8 +95,7 @@
   
   .favorites-bar::-webkit-scrollbar { width: 6px; }
   .favorites-bar::-webkit-scrollbar-thumb { background: var(--line); border-radius: 4px; }
-
-  /* Kafelki ulubionych: dokładnie 3 w rzędzie (dokładnie tak jak główne stacje) */
+  
   .fav-chip {
     position: relative;
     width: calc((100% - 16px) / 3);
@@ -231,7 +230,6 @@
   
   .stations{display:grid;grid-template-columns:repeat(3, minmax(0, 1fr));gap:12px;min-width:0}
   
-  /* Główne kafelki stacji */
   .station-card{
     display: flex;
     flex-direction: column;
@@ -363,7 +361,7 @@
     .play-btn svg { width: 26px; height: 26px; }
 
     .favorites-bar { max-height: 110px; }
-    /* Utrzymujemy dokładnie 3 kolumny dla ulubionych (z uwzględnieniem luki gap: 8px -> 16px na równe 3 części) */
+    
     .fav-chip { width: calc((100% - 16px) / 3); }
     
     .tab { padding: 8px 4px; font-size: 12px; }
