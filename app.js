@@ -7,6 +7,7 @@ const API_BASES = [
 const audio = document.getElementById("audio");
 const stationsEl = document.getElementById("stations");
 const favoritesBarEl = document.getElementById("favoritesBar");
+const bigPictureFavoritesEl = document.getElementById("bigPictureFavorites");
 const stationNameEl = document.getElementById("stationName");
 const stationMetaEl = document.getElementById("stationMeta");
 const nowPlayingEl = document.getElementById("nowPlaying");
@@ -19,28 +20,114 @@ const connectionStatusEl = document.getElementById("connectionStatus");
 const playBtn = document.getElementById("playBtn");
 const playIconSvg = document.getElementById("playIconSvg");
 const favoriteCurrentBtn = document.getElementById("favoriteCurrent");
+const bigPictureFavoriteBtn = document.getElementById("bigPictureFavorite");
 const refreshBtn = document.getElementById("refreshBtn");
+const bigPicture = document.getElementById("bigPicture");
+const bigPictureBackdrop = document.getElementById("bigPictureBackdrop");
+const bigPictureLogo = document.getElementById("bigPictureLogo");
+const bigPictureLogoFallback = document.getElementById("bigPictureLogoFallback");
+const bigPictureName = document.getElementById("bigPictureName");
+const bigPictureMeta = document.getElementById("bigPictureMeta");
+const bigPictureStatus = document.getElementById("bigPictureStatus");
+const bigPicturePlayIcon = document.getElementById("bigPicturePlayIcon");
 
 let stations = [];
 let currentIndex = -1;
 let currentPlayingUuid = null;
+let currentStreamUrl = null;
 let activeBase = null;
 let currentTab = "poland";
 let currentLimit = 50;
+let reconnectEnabled = false;
+let reconnectAttempts = 0;
+let reconnectTimer = null;
+let bufferWatchdog = null;
 
 let favourites = JSON.parse(localStorage.getItem("carRadioFavorites") || "[]");
 let stationCache = JSON.parse(localStorage.getItem("carRadioCache") || "{}");
 let lastPlayedUuid = localStorage.getItem("carRadioLastPlayed") || null;
+const BIG_PICTURE_STORAGE_KEY = "carRadioBigPicture";
 
 let selectedTag = "music";
 let selectedSort = "clickcount";
 let selectedReverse = true;
 
 function setPlayIcon(isPlaying) {
-  playIconSvg.innerHTML = isPlaying 
+  const icon = isPlaying
     ? '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>' 
     : '<path d="M8 5v14l11-7z"/>';
+  playIconSvg.innerHTML = icon;
+  bigPicturePlayIcon.innerHTML = icon;
 }
+
+function setBigPictureStatus(text) {
+  bigPictureStatus.textContent = text;
+}
+
+function setBigPictureVisible(visible) {
+  bigPicture.classList.toggle("hidden", !visible);
+  bigPicture.setAttribute("aria-hidden", String(!visible));
+  localStorage.setItem(BIG_PICTURE_STORAGE_KEY, String(visible));
+}
+
+function cancelReconnect() {
+  reconnectEnabled = false;
+  clearTimeout(reconnectTimer);
+  clearTimeout(bufferWatchdog);
+  reconnectTimer = null;
+  bufferWatchdog = null;
+}
+
+function scheduleReconnect() {
+  if (!reconnectEnabled || !currentStreamUrl || reconnectTimer) return;
+
+  clearTimeout(bufferWatchdog);
+  bufferWatchdog = null;
+  const delay = Math.min(1000 * (2 ** reconnectAttempts), 30000);
+  reconnectAttempts += 1;
+  const seconds = Math.ceil(delay / 1000);
+  const message = `Utracono połączenie. Ponawianie za ${seconds} s...`;
+  streamStatusEl.textContent = `Ponawianie za ${seconds} s`;
+  nowPlayingEl.textContent = message;
+  setBigPictureStatus(message);
+
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    if (!reconnectEnabled || !currentStreamUrl) return;
+    streamStatusEl.textContent = "Ponawianie połączenia...";
+    nowPlayingEl.textContent = "Łączenie ze stacją...";
+    setBigPictureStatus("Łączenie ze stacją...");
+    audio.src = currentStreamUrl;
+    audio.load();
+    audio.play().catch(scheduleReconnect);
+  }, delay);
+}
+
+function formatStationName(name) {
+  const characters = Array.from(String(name || "Bez nazwy"));
+  return characters.length > 40 ? `${characters.slice(0, 37).join("")}...` : characters.join("");
+}
+
+function syncBigPictureStation(station) {
+  bigPictureName.textContent = formatStationName(station.name);
+  bigPictureMeta.textContent = [station.countrycode, station.codec, station.bitrate ? `${station.bitrate} kbps` : ""]
+    .filter(Boolean).join(" • ") || "Radio internetowe";
+  if (station.favicon) {
+    bigPictureBackdrop.src = station.favicon;
+    bigPictureBackdrop.classList.remove("hidden");
+    bigPictureLogo.src = station.favicon;
+    bigPictureLogo.classList.remove("hidden");
+    bigPictureLogoFallback.classList.add("hidden");
+  } else {
+    bigPictureBackdrop.removeAttribute("src");
+    bigPictureBackdrop.classList.add("hidden");
+    bigPictureLogo.removeAttribute("src");
+    bigPictureLogo.classList.add("hidden");
+    bigPictureLogoFallback.classList.remove("hidden");
+  }
+}
+
+bigPictureBackdrop.addEventListener("error", () => bigPictureBackdrop.classList.add("hidden"));
 
 function setStatus(text, good = false) {
   connectionStatusEl.textContent = text;
@@ -83,12 +170,16 @@ function toggleFavorite(uuid) {
 function updateCurrentFavorite() {
   if (!currentPlayingUuid) {
     favoriteCurrentBtn.textContent = "♡";
+    bigPictureFavoriteBtn.textContent = "♡";
     favoriteCurrentBtn.classList.remove("active");
+    bigPictureFavoriteBtn.classList.remove("active");
     return;
   }
   const active = isFavorite(currentPlayingUuid);
   favoriteCurrentBtn.textContent = active ? "♥" : "♡";
+  bigPictureFavoriteBtn.textContent = active ? "♥" : "♡";
   favoriteCurrentBtn.classList.toggle("active", active);
+  bigPictureFavoriteBtn.classList.toggle("active", active);
 }
 
 function escapeHtml(value = "") {
@@ -181,7 +272,9 @@ async function loadStationsData(append = false) {
 
 function renderFavoritesBar() {
   if (!favourites.length) {
-    favoritesBarEl.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:4px;">Brak ulubionych</div>';
+    const emptyMessage = '<div style="color:var(--muted);font-size:12px;padding:4px;">Brak ulubionych</div>';
+    favoritesBarEl.innerHTML = emptyMessage;
+    bigPictureFavoritesEl.innerHTML = emptyMessage;
     return;
   }
 
@@ -190,15 +283,15 @@ function renderFavoritesBar() {
     if (!station) {
       return `
         <div class="fav-chip" data-uuid="${escapeHtml(uuid)}" draggable="true" title="Ładowanie...">
-          <div class="fav-logo-fallback-bg">♪</div>
+          <div class="fav-logo-fallback-bg" aria-hidden="true"></div>
           <div class="fav-overlay"><div class="fav-name">Ładowanie...</div></div>
         </div>`;
     }
     
     const logoBg = station.favicon
       ? `<img class="fav-logo-bg" src="${escapeHtml(station.favicon)}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-         <div class="fav-logo-fallback-bg" style="display:none">♪</div>`
-      : `<div class="fav-logo-fallback-bg">♪</div>`;
+        <div class="fav-logo-fallback-bg" style="display:none" aria-hidden="true"></div>`
+      : `<div class="fav-logo-fallback-bg" aria-hidden="true"></div>`;
       
     const isActive = station.stationuuid === currentPlayingUuid;
     const name = station.name || "Stacja";
@@ -213,9 +306,21 @@ function renderFavoritesBar() {
   }).join("");
 
   favoritesBarEl.innerHTML = html;
+  bigPictureFavoritesEl.innerHTML = html;
+  bigPictureFavoritesEl.querySelectorAll(".fav-chip").forEach(chip => {
+    chip.draggable = false;
+  });
 }
 
 favoritesBarEl.onclick = (e) => {
+  if (wasDragging) return;
+  const chip = e.target.closest(".fav-chip");
+  if (!chip) return;
+  const uuid = chip.dataset.uuid;
+  if (uuid) prepareFavoriteByUuid(uuid, true);
+};
+
+bigPictureFavoritesEl.onclick = (e) => {
   if (wasDragging) return;
   const chip = e.target.closest(".fav-chip");
   if (!chip) return;
@@ -242,8 +347,8 @@ function renderStations() {
     
     const logoBg = s.favicon
       ? `<img class="card-logo-bg" src="${escapeHtml(s.favicon)}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-         <div class="card-logo-fallback-bg" style="display:none">♪</div>`
-      : `<div class="card-logo-fallback-bg">♪</div>`;
+        <div class="card-logo-fallback-bg" style="display:none" aria-hidden="true"></div>`
+      : `<div class="card-logo-fallback-bg" aria-hidden="true"></div>`;
       
     const meta = [s.codec, s.bitrate ? `${s.bitrate} kbps` : ""].filter(Boolean).join(" • ");
     
@@ -329,8 +434,12 @@ function prepareStationObject(station, autoPlay = false) {
     return;
   }
 
+  cancelReconnect();
+  reconnectAttempts = 0;
+  currentStreamUrl = url;
+  reconnectEnabled = autoPlay;
   localStorage.setItem("carRadioLastPlayed", station.stationuuid);
-  stationNameEl.textContent = station.name || "Bez nazwy";
+  stationNameEl.textContent = formatStationName(station.name);
   stationMetaEl.textContent = [station.countrycode, station.codec, station.bitrate ? `${station.bitrate} kbps` : ""].filter(Boolean).join(" • ");
   
   if (station.favicon) {
@@ -348,6 +457,8 @@ function prepareStationObject(station, autoPlay = false) {
 
   streamStatusEl.textContent = "Ładowanie...";
   nowPlayingEl.textContent = "Ładowanie strumienia...";
+  setBigPictureStatus("Ładowanie strumienia...");
+  syncBigPictureStation(station);
 
   audio.pause();
   audio.src = url;
@@ -358,36 +469,67 @@ function prepareStationObject(station, autoPlay = false) {
       setPlayIcon(true);
       streamStatusEl.textContent = "Odtwarzanie";
       nowPlayingEl.textContent = "Na żywo";
+      setBigPictureStatus("Na żywo");
       countClick(station);
       setupMediaSession(station);
     }).catch((err) => {
       setPlayIcon(false);
-      streamStatusEl.textContent = "Zablokowane / Błąd HTTP";
-      nowPlayingEl.textContent = "Kliknij Play, aby uruchomić";
+      if (reconnectEnabled) {
+        scheduleReconnect();
+      } else {
+        streamStatusEl.textContent = "Zablokowane / Błąd HTTP";
+        nowPlayingEl.textContent = "Kliknij Play, aby uruchomić";
+        setBigPictureStatus("Kliknij Play, aby uruchomić");
+      }
       console.error("Autoplay error:", err);
     });
   } else {
     setPlayIcon(false);
     streamStatusEl.textContent = "Gotowe";
     nowPlayingEl.textContent = "Naciśnij Play";
+    setBigPictureStatus("Naciśnij Play");
   }
 }
 
 audio.addEventListener('waiting', () => {
   streamStatusEl.textContent = "Ładowanie / Buforowanie...";
   nowPlayingEl.textContent = "Pobieranie danych...";
+  setBigPictureStatus("Buforowanie strumienia...");
+  if (reconnectEnabled && !bufferWatchdog) {
+    bufferWatchdog = setTimeout(() => {
+      bufferWatchdog = null;
+      if (reconnectEnabled && audio.readyState < HTMLMediaElement.HAVE_FUTURE_DATA) {
+        scheduleReconnect();
+      }
+    }, 15000);
+  }
 });
 
 audio.addEventListener('playing', () => {
+  clearTimeout(reconnectTimer);
+  clearTimeout(bufferWatchdog);
+  reconnectTimer = null;
+  bufferWatchdog = null;
+  reconnectAttempts = 0;
   setPlayIcon(true);
   streamStatusEl.textContent = "Odtwarzanie";
   nowPlayingEl.textContent = "Na żywo";
+  setBigPictureStatus("Na żywo");
 });
 
 audio.addEventListener('error', () => {
   setPlayIcon(false);
-  streamStatusEl.textContent = "Błąd strumienia";
-  nowPlayingEl.textContent = "Stacja niedostępna";
+  if (reconnectEnabled) {
+    scheduleReconnect();
+  } else {
+    streamStatusEl.textContent = "Błąd strumienia";
+    nowPlayingEl.textContent = "Stacja niedostępna";
+    setBigPictureStatus("Stacja niedostępna");
+  }
+});
+
+audio.addEventListener('ended', () => {
+  if (reconnectEnabled) scheduleReconnect();
 });
 
 function setupMediaSession(station) {
@@ -399,8 +541,12 @@ function setupMediaSession(station) {
       artwork: station.favicon ? [{ src: station.favicon, sizes: '96x96 128x128 192x192 512x512', type: 'image/png' }] : []
     });
 
-    navigator.mediaSession.setActionHandler('play', () => { audio.play(); setPlayIcon(true); });
-    navigator.mediaSession.setActionHandler('pause', () => { audio.pause(); setPlayIcon(false); });
+    navigator.mediaSession.setActionHandler('play', () => playBtn.click());
+    navigator.mediaSession.setActionHandler('pause', () => {
+      cancelReconnect();
+      audio.pause();
+      setPlayIcon(false);
+    });
     navigator.mediaSession.setActionHandler('previoustrack', () => playFavoriteOffset(-1));
     navigator.mediaSession.setActionHandler('nexttrack', () => playFavoriteOffset(1));
   }
@@ -416,6 +562,24 @@ function playFavoriteOffset(offset) {
   }
   prepareFavoriteByUuid(favourites[favIndex], true);
 }
+
+function playRandomStation() {
+  if (!stations.length) {
+    const message = "Brak stacji w bieżącej kategorii";
+    streamStatusEl.textContent = message;
+    nowPlayingEl.textContent = message;
+    setBigPictureStatus(message);
+    return;
+  }
+
+  const candidates = stations
+    .map((station, index) => index)
+    .filter(index => stations.length === 1 || stations[index].stationuuid !== currentPlayingUuid);
+  const availableStations = candidates.length ? candidates : stations.map((station, index) => index);
+  const randomIndex = availableStations[Math.floor(Math.random() * availableStations.length)];
+  prepareStation(randomIndex, true);
+}
+
 
 let draggedUuid = null;
 let wasDragging = false;
@@ -462,6 +626,9 @@ favoritesBarEl.addEventListener("dragend", (e) => {
 async function init() {
   audio.volume = 0.9;
   renderFavoritesBar();
+  if (localStorage.getItem(BIG_PICTURE_STORAGE_KEY) === "true") {
+    setBigPictureVisible(true);
+  }
 
   try {
     await loadStationsData(false);
@@ -510,6 +677,10 @@ playBtn.addEventListener("click", () => {
     return;
   }
   if (audio.paused) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+    reconnectEnabled = true;
+    reconnectAttempts = 0;
     audio.play().then(() => {
       setPlayIcon(true);
       streamStatusEl.textContent = "Odtwarzanie";
@@ -522,9 +693,10 @@ playBtn.addEventListener("click", () => {
       audio.play().then(() => {
         setPlayIcon(true);
         streamStatusEl.textContent = "Odtwarzanie";
-      }).catch(() => {});
+      }).catch(scheduleReconnect);
     });
   } else {
+    cancelReconnect();
     audio.pause();
     setPlayIcon(false);
     streamStatusEl.textContent = "Wstrzymano";
@@ -532,12 +704,38 @@ playBtn.addEventListener("click", () => {
 });
 
 document.getElementById("stopBtn").addEventListener("click", () => {
+  cancelReconnect();
   audio.pause();
   audio.currentTime = 0;
   setPlayIcon(false);
   streamStatusEl.textContent = "Zatrzymano";
   nowPlayingEl.textContent = "Gotowe do wznowienia";
+  setBigPictureStatus("Zatrzymano");
 });
+
+document.getElementById("bigPictureBtn").addEventListener("click", () => {
+  setBigPictureVisible(true);
+});
+
+function closeBigPicture() {
+  setBigPictureVisible(false);
+}
+
+document.getElementById("bigPictureClose").addEventListener("click", closeBigPicture);
+document.getElementById("bigPicture").addEventListener("click", event => {
+  if (event.target === bigPicture) closeBigPicture();
+});
+document.addEventListener("keydown", event => {
+  if (event.key === "Escape" && !bigPicture.classList.contains("hidden")) closeBigPicture();
+});
+document.getElementById("bigPicturePrev").addEventListener("click", () => document.getElementById("prevBtn").click());
+document.getElementById("bigPicturePlay").addEventListener("click", () => playBtn.click());
+document.getElementById("bigPictureNext").addEventListener("click", () => document.getElementById("nextBtn").click());
+document.getElementById("bigPictureStop").addEventListener("click", () => document.getElementById("stopBtn").click());
+document.getElementById("randomBtn").addEventListener("click", playRandomStation);
+document.getElementById("bigPictureRandom").addEventListener("click", playRandomStation);
+document.getElementById("bigPictureRefresh").addEventListener("click", () => refreshBtn.click());
+bigPictureFavoriteBtn.addEventListener("click", () => favoriteCurrentBtn.click());
 
 if (refreshBtn) {
   refreshBtn.addEventListener("click", () => {
@@ -559,6 +757,7 @@ document.querySelectorAll(".tabs .tab").forEach(tab => {
     document.querySelectorAll(".tabs .tab").forEach(t => t.classList.remove("active"));
     tab.classList.add("active");
     currentTab = tab.dataset.tab;
+    document.querySelector(".right-panel").classList.toggle("filters-scroll", currentTab === "filters");
     
     document.getElementById("searchPanel").classList.toggle("hidden", currentTab !== "search");
     document.getElementById("filterPanel").classList.toggle("hidden", currentTab !== "filters");
