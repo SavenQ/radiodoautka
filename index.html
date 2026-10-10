@@ -9,7 +9,7 @@
   *{box-sizing:border-box}
   :root{
     --bg:#0b0d10;--panel:#141920;--panel2:#1c232d;--line:#28313d;
-    --text:#f2f4f7;--muted:#9aa4b2;--accent:#f2f2f2;--good:#78d394
+    --text:#f2f4f7;--muted:#9aa4b2;--accent:#f2f2f2;--accent-contrast:#111;--good:#78d394;--station-columns:3;--favorites-columns:3;--category-tab-height:42px
   }
   html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:Arial,Helvetica,sans-serif;height:100%;overflow:hidden}
   button,input{font:inherit}
@@ -37,6 +37,8 @@
   }
 
   .left-panel {
+    position: relative;
+    isolation: isolate;
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -44,23 +46,52 @@
     padding-right: 16px;
     min-height: 0;
     min-width: 0;
+    overflow: hidden;
   }
 
-  .player{display:grid;grid-template-columns:76px minmax(0, 1fr) auto;gap:12px;align-items:center;flex-shrink:0}
-  .station-art-wrap{position:relative;width:76px;height:76px;flex-shrink:0}
-  .station-art,.station-art-fallback{width:76px;height:76px;border-radius:12px;background:var(--panel2);border:1px solid var(--line)}
+  .left-panel-backdrop{position:absolute;inset:-24px;width:calc(100% + 48px);height:calc(100% + 48px);object-fit:cover;filter:blur(24px) brightness(.34) saturate(.8);opacity:.9;pointer-events:none;z-index:-2}
+  .left-panel::before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(5,7,9,.42),rgba(5,7,9,.62));pointer-events:none;z-index:-1}
+  .left-panel > :not(.left-panel-backdrop){position:relative;z-index:0}
+
+  .player{position:relative;display:flex;width:100%;flex-direction:column;align-items:center;gap:8px;padding-top:52px;flex-shrink:0}
+  .player-top{display:grid;align-self:center;width:100%;max-width:380px;grid-template-columns:minmax(0,220px) 148px;justify-content:center;align-items:center;gap:6px}
+  .station-art-wrap{position:relative;grid-column:2;grid-row:1;width:148px;height:148px;flex-shrink:0}
+  .station-art,.station-art-fallback{width:148px;height:148px;border-radius:0;background:transparent;border:0}
   .station-art{object-fit:contain;display:none}
-  .station-art-fallback{display:flex;align-items:center;justify-content:center;font-size:34px;color:var(--muted)}
+  .station-art-fallback{display:flex;align-items:center;justify-content:center;font-size:60px;color:var(--muted)}
   .station-art-fallback::before,.big-picture-fallback::before,.card-logo-fallback-bg::before,.fav-logo-fallback-bg::before,.station-art-fallback::after,.big-picture-fallback::after,.card-logo-fallback-bg::after,.fav-logo-fallback-bg::after{content:none}
   
-  .station-main{min-width:0;}
-  .station-name{font-size:19px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .station-main{grid-column:1;grid-row:1;width:100%;max-width:220px;min-width:0;text-align:center}
+  .station-name{display:-webkit-box;width:100%;font-size:25px;font-weight:800;white-space:normal;overflow:hidden;overflow-wrap:anywhere;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2}
   .station-meta{font-size:12px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .now-playing{font-size:11px;color:var(--good);margin-top:3px;min-height:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .player-bottom{position:relative;display:flex;width:100%;align-items:center;justify-content:center}
+  .player-controls{position:static;display:flex;flex-direction:row;align-items:center;justify-content:center;gap:10px;flex-shrink:0}
+  .player-controls .control-btn,.player-controls .play-btn{width:52px;height:52px;border-radius:12px}
+  .player-controls svg,.player-controls .play-btn svg{width:24px;height:24px}
   
   .icon-btn{width:46px;height:46px;border-radius:12px;border:1px solid var(--line);background:var(--panel);font-size:22px;cursor:pointer;flex-shrink:0}
   .icon-btn.active{font-size:20px}
-  .player-actions{display:flex;gap:6px}
+  .player-actions{position:absolute;top:50%;right:0;display:flex;gap:6px;transform:translateY(-50%)}
+  .settings-dialog{width:min(420px,calc(100% - 32px));max-height:calc(100dvh - 32px);overflow-y:auto;padding:0;border:1px solid var(--line);border-radius:14px;background:var(--panel);color:var(--text)}
+  .settings-dialog::backdrop{background:rgba(0,0,0,.68);backdrop-filter:blur(4px)}
+  .settings-header{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid var(--line)}
+  .settings-title{margin:0;font-size:18px;font-weight:800}
+  .settings-content{display:flex;flex-direction:column;gap:20px;padding:18px}
+  .settings-group{margin:0;padding:0;border:0}
+  .settings-group legend,.settings-color-label{display:block;margin-bottom:10px;font-size:13px;font-weight:700}
+  .settings-columns{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+  .settings-column-option{min-height:44px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);color:var(--text);font-weight:700;cursor:pointer}
+  .settings-column-option.active{background:var(--accent);border-color:var(--accent);color:var(--accent-contrast)}
+  .settings-range-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px 12px}
+  .settings-range-row label{grid-column:1/-1;font-size:13px;font-weight:700}
+  .settings-range-row input{width:100%;accent-color:var(--accent)}
+  .settings-range-row output{min-width:42px;color:var(--muted);font-size:12px;text-align:right}
+  .settings-color-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .settings-color-label{margin:0}
+  .settings-color-input{width:52px;height:40px;padding:3px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);cursor:pointer}
+  .settings-reset-btn{min-height:40px;padding:0 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);color:var(--text);font-size:12px;font-weight:700;cursor:pointer}
+  .big-picture-launch{position:fixed;top:20px;left:20px;z-index:1100}
   .icon-btn svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:middle}
 
   .big-picture{
@@ -81,11 +112,10 @@
   .big-picture.hidden{display:none}
   .big-picture-backdrop{position:absolute;inset:-28px;width:calc(100% + 56px);height:calc(100% + 56px);object-fit:cover;filter:blur(28px) brightness(.34) saturate(.8);opacity:.9;pointer-events:none;z-index:0}
   .big-picture::after{content:"";position:absolute;inset:0;z-index:1;background:linear-gradient(180deg,rgba(5,7,9,.38),rgba(5,7,9,.58));pointer-events:none}
-  .big-picture-close{position:absolute;top:20px;right:20px;z-index:3}
-  .big-picture-refresh{position:absolute;top:20px;right:76px;z-index:3}
-  .big-picture-favorite{position:absolute;top:20px;right:132px;z-index:3}
+  .big-picture-refresh{position:absolute;top:20px;right:20px;z-index:3}
+  .big-picture-favorite{position:absolute;top:20px;right:76px;z-index:3}
   .big-picture-main{position:relative;z-index:2;flex:1;min-height:0;width:100%;max-width:1000px;display:grid;grid-template-columns:auto auto;grid-template-rows:minmax(0, 1fr) auto;justify-content:center;align-items:center;column-gap:clamp(20px, 4vw, 56px);row-gap:12px}
-  .big-picture-art-wrap{justify-self:end;width:min(44vh, 32vw, 360px);height:min(44vh, 32vw, 360px);min-width:min(170px, 30vw);min-height:min(150px, 30vh);display:flex;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:24px;background:var(--panel2);overflow:hidden;flex-shrink:1}
+  .big-picture-art-wrap{justify-self:center;width:min(44vh, 32vw, 360px);height:min(44vh, 32vw, 360px);min-width:min(170px, 30vw);min-height:min(150px, 30vh);display:flex;align-items:center;justify-content:center;border:0;border-radius:0;background:transparent;overflow:hidden;flex-shrink:1}
   .big-picture-art{width:100%;height:100%;object-fit:contain;padding:18px}
   .big-picture-fallback{display:flex;width:100%;height:100%;align-items:center;justify-content:center;font-size:clamp(80px, 18vw, 150px);color:var(--muted)}
   .big-picture-info{width:fit-content;max-width:min(520px, 52vw);min-width:0;justify-self:start;text-align:left}
@@ -120,22 +150,24 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
-    flex: 1;
+    flex: 1 1 0;
     min-height: 0;
     min-width: 0;
   }
   .favorites-title { font-size: 12px; color: var(--muted); font-weight: 700; flex-shrink: 0; }
   
   .favorites-bar {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(var(--favorites-columns-custom,var(--favorites-columns)), minmax(0, 1fr));
+    grid-auto-rows: min-content;
     gap: 8px;
     overflow-y: auto;
     overflow-x: hidden;
     padding: 2px 4px 6px 2px;
-    flex: 1;
+    flex: 1 1 0;
     min-height: 0;
-    align-content: flex-start;
+    max-height: none;
+    align-content: start;
     touch-action: pan-y;
   }
   
@@ -144,11 +176,11 @@
 
   .fav-chip {
     position: relative;
-    width: calc((100% - 16px) / 3);
+    width: 100%;
     aspect-ratio: 1;
     border-radius: 12px;
     border: 1px solid var(--line);
-    background: var(--panel2);
+    background: transparent;
     cursor: pointer;
     display: flex;
     flex-direction: column;
@@ -215,9 +247,10 @@
     min-width: 0;
   }
 
-  .tabs{display:grid;grid-template-columns:repeat(4,1fr) 48px;gap:8px;padding-bottom:10px;flex-shrink:0}
-  .tab{border:1px solid var(--line);background:var(--panel);border-radius:12px;padding:12px 6px;cursor:pointer;text-align:center;font-size:14px;font-weight:700}
-  .tab.active{background:var(--accent);color:#111;border-color:var(--accent);font-weight:800}
+  .tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr)) 48px 48px;gap:8px;padding-bottom:10px;flex-shrink:0}
+  .mobile-favorites-tab{display:none}
+  .tab{min-height:var(--category-tab-height-custom,var(--category-tab-height));border:1px solid var(--line);background:var(--panel);border-radius:12px;padding:12px 6px;cursor:pointer;text-align:center;font-size:14px;font-weight:700}
+  .tab.active{background:var(--accent);color:var(--accent-contrast);border-color:var(--accent);font-weight:800}
 
   .refresh-btn {
     display: flex !important;
@@ -232,10 +265,12 @@
     cursor: pointer !important;
   }
   .refresh-btn:hover { background: var(--panel2) !important; }
+  .settings-tab{display:flex;align-items:center;justify-content:center;padding:0}
+  .settings-tab svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 
   .search-panel{display:flex;gap:8px;margin-bottom:8px;flex-shrink:0}
   .search-panel input{flex:1;background:var(--panel);border:1px solid var(--line);color:var(--text);border-radius:12px;padding:10px 14px;outline:none;font-size:14px;min-width:0}
-  .search-panel button{border:1px solid var(--line);background:var(--accent);color:#111;border-radius:12px;padding:0 18px;font-weight:700;cursor:pointer;font-size:14px;flex-shrink:0}
+  .search-panel button{border:1px solid var(--line);background:var(--accent);color:var(--accent-contrast);border-radius:12px;padding:0 18px;font-weight:700;cursor:pointer;font-size:14px;flex-shrink:0}
   
   .filter-panel {
     background: var(--panel);
@@ -263,7 +298,7 @@
     cursor: pointer;
     color: var(--text);
   }
-  .filter-btn.active { background: var(--accent); color: #111; font-weight: 700; border-color: var(--accent); }
+  .filter-btn.active { background: var(--accent); color: var(--accent-contrast); font-weight: 700; border-color: var(--accent); }
 
   .hidden{display:none}
 
@@ -278,7 +313,7 @@
     padding-bottom: 8px;
   }
   
-  .stations{display:grid;grid-template-columns:repeat(3, minmax(0, 1fr));gap:12px;min-width:0}
+  .stations{display:grid;grid-template-columns:repeat(var(--station-columns-custom,var(--station-columns)),minmax(0,1fr));gap:12px;min-width:0}
   
   .station-card{
     display: flex;
@@ -358,22 +393,6 @@
     text-overflow: ellipsis;
   }
 
-  .card-fav{
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
-    border: 1px solid var(--line);
-    background: rgba(20, 25, 32, 0.85);
-    font-size: 15px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-  .card-fav:hover { background: var(--panel2); }
-  .card-fav.active{background: var(--accent); color: #111; border-color: var(--accent);}
-  
   .empty{padding:25px 10px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:14px;grid-column:1/-1;font-size:14px}
   
   .load-more-btn {
@@ -390,27 +409,33 @@
     font-size: 13px;
   }
   .load-more-btn:hover { background: var(--panel2); border-color: var(--muted); }
+  .mobile-favorites-panel{display:flex;flex-direction:column;gap:6px;flex:1;min-height:0}
+  .mobile-favorites-panel.hidden{display:none}
+  .mobile-favorites-panel .favorites-bar{flex:1;min-height:0;max-height:none;overflow-y:auto}
   
   .footer{display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:11px;padding-top:8px;flex-shrink:0;border-top:1px solid var(--line)}
 
-  @media(max-width:850px){
-    .app { padding: 8px 10px; }
-    .main-layout { grid-template-columns: 1fr; gap: 10px; }
-    .left-panel { border-right: none; border-bottom: 1px solid var(--line); padding-bottom: 8px; padding-right: 0; gap: 8px; }
-    .stations { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  @media(max-width:800px){
+    :root{--station-columns:4;--favorites-columns:4;--category-tab-height:46px}
+    .app { height:100vh;height:100dvh;max-height:none;padding:8px 10px;overflow:hidden; }
+    .main-layout { display:flex;flex:1 1 auto;flex-direction:column;min-height:0;gap:8px;overflow:hidden; }
+    .left-panel { flex:0 0 auto;border-right:none;border-bottom:1px solid var(--line);padding:0 0 8px;gap:6px;overflow:hidden; }
+    .stations { gap:8px; }
+    .card-bitrate,.card-bitrate-separator{display:none}
 
-    .player {
-      grid-template-columns: 60px minmax(0, 1fr) auto;
-      gap: 8px;
-    }
+    .player { gap:6px;padding-top:34px; }
     .player-actions{gap:4px}
     .player-actions .icon-btn{width:38px;height:40px}
-    .station-art-wrap, .station-art, .station-art-fallback {
-      width: 60px;
-      height: 60px;
-      font-size: 26px;
-    }
-    .station-name { font-size: 16px; }
+    .player-top{display:grid;width:100%;max-width:360px;grid-template-columns:minmax(0,200px) 120px;justify-content:center;align-items:center;gap:12px}
+    .station-art-wrap,.station-art,.station-art-fallback{width:120px;height:120px}
+    .station-art-fallback{font-size:48px}
+    .station-art-wrap{grid-column:2;grid-row:1}
+    .station-main{grid-column:1;grid-row:1;width:100%;max-width:200px;min-width:0;justify-self:center;text-align:center}
+    .player-bottom{gap:8px}
+    .player-controls{flex-direction:row;gap:6px}
+    .player-controls .control-btn,.player-controls .play-btn{width:48px;height:48px;border-radius:10px}
+    .player-controls svg,.player-controls .play-btn svg{width:22px;height:22px}
+    .station-name { font-size: 20px; }
 
     .controls { gap: 10px; padding: 2px 0; }
     .control-btn { width: 48px; height: 48px; border-radius: 12px; }
@@ -418,11 +443,16 @@
     .control-btn svg, .play-btn svg { width: 22px; height: 22px; }
     .play-btn svg { width: 26px; height: 26px; }
 
-    .favorites-bar { max-height: 110px; }
-
-    .fav-chip { width: calc((100% - 24px) / 4); }
+    .favorites-section{flex:0 0 auto;min-height:0}
+    .favorites-bar{flex:0 0 auto;min-height:100px;max-height:min(32vh,220px);overflow-y:auto;padding-bottom:12px;overscroll-behavior-y:contain}
+    .fav-chip{width:100%}
+    .left-panel .favorites-section{display:none}
     
-    .tab { padding: 8px 4px; font-size: 12px; }
+    .tabs{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;padding-bottom:10px}
+    .tab { min-height:46px;padding:10px 5px;font-size:13px; }
+    .mobile-favorites-tab{display:block}
+    .right-panel{flex:1 1 auto;height:auto;min-height:0;overflow:hidden}
+    .stations-container{flex:1 1 auto;min-height:0;overflow-y:auto}
     .big-picture{gap:12px}
     .big-picture-main{column-gap:clamp(20px, 4vw, 36px)}
     .big-picture-art-wrap{width:min(34vh, 22vw, 300px);height:min(34vh, 30vw, 300px);min-width:min(150px, 30vw);min-height:min(150px, 30vh)}
@@ -431,60 +461,52 @@
     .big-picture-controls .control-btn{width:48px;height:48px}
     .big-picture-controls .play-btn{width:62px;height:62px}
 
-    .right-panel.filters-scroll{overflow-y:auto;overscroll-behavior-y:contain}
-    .right-panel.filters-scroll .tabs{position:sticky;top:0;z-index:10;background:var(--bg)}
-    .right-panel.filters-scroll .stations-container{flex:0 0 auto;overflow:visible;min-height:auto}
   }
 
-  @media(max-width:600px){
-    .big-picture-main{grid-template-columns:minmax(0, 1fr);grid-template-rows:minmax(0, 1fr) auto auto;row-gap:10px}
-    .big-picture-art-wrap{justify-self:center;width:min(22vh, 50vw, 180px);height:min(22vh, 50vw, 180px);min-width:min(130px, 40vw);min-height:min(130px, 22vh)}
-    .big-picture-info{width:100%;max-width:90vw;justify-self:center;text-align:center}
-    .big-picture-name{font-size:28px}
-    .big-picture-controls{grid-row:auto}
+  @media(max-width:590px){
+    :root{--station-columns:3;--favorites-columns:3}
+    .stations { gap:8px; }
+    .mobile-favorites-panel .favorites-bar{flex:1;min-height:0;max-height:none;overflow-y:auto}
   }
 </style>
 </head>
 <body>
+  <button id="bigPictureBtn" class="icon-btn big-picture-launch" title="Tryb Big Picture" aria-label="Otwórz tryb Big Picture">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3m13-5h3a2 2 0 0 1 2 2v3M3 16v3a2 2 0 0 0 2 2h3m13-5v3a2 2 0 0 1-2 2h-3"/></svg>
+  </button>
   <div class="app">
     <div class="main-layout">
       <aside class="left-panel">
+        <img id="playerBackdrop" class="left-panel-backdrop hidden" alt="" aria-hidden="true">
         <section class="player">
-          <div class="station-art-wrap">
-            <img id="stationLogo" class="station-art" alt="" onerror="this.style.display='none';document.getElementById('stationLogoFallback').style.display='flex'">
-            <div id="stationLogoFallback" class="station-art-fallback" aria-hidden="true"></div>
+          <div class="player-top">
+            <div class="station-art-wrap">
+              <img id="stationLogo" class="station-art" alt="" onerror="this.style.display='none';document.getElementById('stationLogoFallback').style.display='flex'">
+              <div id="stationLogoFallback" class="station-art-fallback" aria-hidden="true"></div>
+            </div>
+            <div class="station-main">
+              <div id="stationName" class="station-name">Wybierz stację</div>
+              <div id="stationMeta" class="station-meta">Radio internetowe</div>
+              <div id="nowPlaying" class="now-playing">Gotowe do odtwarzania</div>
+            </div>
           </div>
 
-          <div class="station-main">
-            <div id="stationName" class="station-name">Wybierz stację</div>
-            <div id="stationMeta" class="station-meta">Radio internetowe</div>
-            <div id="nowPlaying" class="now-playing">Gotowe do odtwarzania</div>
+          <div class="player-bottom">
+            <section class="player-controls" aria-label="Sterowanie odtwarzaniem">
+              <button id="playBtn" class="play-btn" title="Odtwórz / Pauza">
+                <svg id="playIconSvg" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+              </button>
+              <button id="stopBtn" class="control-btn" title="Zatrzymaj">
+                <svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>
+              </button>
+              <button id="randomBtn" class="control-btn shuffle-btn" title="Odtwórz losową stację z bieżącej kategorii" aria-label="Odtwórz losową stację z bieżącej kategorii">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m18 14 4 4-4 4M18 2l4 4-4 4M2 18h2.5a5 5 0 0 0 4-2l7-8a5 5 0 0 1 4-2H22M2 6h2.5a5 5 0 0 1 4 2l1 1M14 14l1 1a5 5 0 0 0 4 2H22"/></svg>
+              </button>
+            </section>
+            <div class="player-actions">
+              <button id="favoriteCurrent" class="icon-btn" title="Ulubione" aria-label="Ulubione">♡</button>
+            </div>
           </div>
-
-          <div class="player-actions">
-            <button id="favoriteCurrent" class="icon-btn" title="Ulubione" aria-label="Ulubione">♡</button>
-            <button id="bigPictureBtn" class="icon-btn" title="Tryb Big Picture" aria-label="Otwórz tryb Big Picture">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3m13-5h3a2 2 0 0 1 2 2v3M3 16v3a2 2 0 0 0 2 2h3m13-5v3a2 2 0 0 1-2 2h-3"/></svg>
-            </button>
-          </div>
-        </section>
-
-        <section class="controls">
-          <button id="prevBtn" class="control-btn" title="Poprzednia ulubiona">
-            <svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
-          </button>
-          <button id="playBtn" class="play-btn" title="Odtwórz / Pauza">
-            <svg id="playIconSvg" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-          </button>
-          <button id="nextBtn" class="control-btn" title="Następna ulubiona">
-            <svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
-          </button>
-          <button id="stopBtn" class="control-btn" title="Zatrzymaj">
-            <svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>
-          </button>
-          <button id="randomBtn" class="control-btn shuffle-btn" title="Odtwórz losową stację z bieżącej kategorii" aria-label="Odtwórz losową stację z bieżącej kategorii">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m18 14 4 4-4 4M18 2l4 4-4 4M2 18h2.5a5 5 0 0 0 4-2l7-8a5 5 0 0 1 4-2H22M2 6h2.5a5 5 0 0 1 4 2l1 1M14 14l1 1a5 5 0 0 0 4 2H22"/></svg>
-          </button>
         </section>
 
         <div class="favorites-section">
@@ -497,11 +519,15 @@
 
       <section class="right-panel">
         <nav class="tabs">
+          <button class="tab mobile-favorites-tab" data-tab="favorites">Ulubione</button>
           <button class="tab active" data-tab="poland">Polska</button>
           <button class="tab" data-tab="popular">Popularne</button>
           <button class="tab" data-tab="filters">Filtry</button>
           <button class="tab" data-tab="search">Szukaj</button>
           <button id="refreshBtn" class="tab refresh-btn" title="Odśwież aplikację">↻</button>
+          <button id="settingsBtn" class="tab refresh-btn settings-tab" title="Ustawienia" aria-label="Otwórz ustawienia">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"/><path d="m19.4 15 .1.1a1.7 1.7 0 1 1-2.4 2.4l-.1-.1a1.7 1.7 0 0 0-2.9 1.2v.2a1.7 1.7 0 1 1-3.4 0v-.2a1.7 1.7 0 0 0-2.9-1.2l-.1.1a1.7 1.7 0 1 1-2.4-2.4l.1-.1a1.7 1.7 0 0 0-1.2-2.9H4a1.7 1.7 0 1 1 0-3.4h.2a1.7 1.7 0 0 0 1.2-2.9l-.1-.1a1.7 1.7 0 1 1 2.4-2.4l.1.1a1.7 1.7 0 0 0 2.9-1.2V2a1.7 1.7 0 1 1 3.4 0v.2a1.7 1.7 0 0 0 2.9 1.2l.1-.1a1.7 1.7 0 1 1 2.4 2.4l-.1.1a1.7 1.7 0 0 0 1.2 2.9h.2a1.7 1.7 0 1 1 0 3.4h-.2a1.7 1.7 0 0 0-1.2 2.9Z"/></svg>
+          </button>
         </nav>
 
         <section id="searchPanel" class="search-panel hidden">
@@ -552,6 +578,10 @@
           </div>
         </section>
 
+        <section id="mobileFavoritesPanel" class="mobile-favorites-panel hidden" aria-label="Ulubione stacje">
+          <section id="mobileFavoritesBar" class="favorites-bar"></section>
+        </section>
+
         <section class="stations-head">
           <div id="sectionTitle">Stacje z Polski</div>
           <div id="resultCount">0</div>
@@ -574,9 +604,45 @@
     <audio id="audio" preload="none"></audio>
   </div>
 
+  <dialog id="settingsDialog" class="settings-dialog" aria-labelledby="settingsTitle">
+    <header class="settings-header">
+      <h2 id="settingsTitle" class="settings-title">Ustawienia</h2>
+      <button id="settingsClose" class="icon-btn" type="button" title="Zamknij ustawienia" aria-label="Zamknij ustawienia">×</button>
+    </header>
+    <div class="settings-content">
+      <fieldset class="settings-group">
+        <legend>Kolumny stacji w kategoriach</legend>
+        <div class="settings-columns" role="group" aria-label="Liczba kolumn stacji">
+          <button class="settings-column-option" type="button" data-columns="2" aria-pressed="false">2</button>
+          <button class="settings-column-option" type="button" data-columns="3" aria-pressed="false">3</button>
+          <button class="settings-column-option" type="button" data-columns="4" aria-pressed="false">4</button>
+          <button class="settings-column-option" type="button" data-columns="5" aria-pressed="false">5</button>
+        </div>
+      </fieldset>
+      <fieldset class="settings-group">
+        <legend>Kolumny ulubionych stacji</legend>
+        <div class="settings-columns" role="group" aria-label="Liczba kolumn ulubionych stacji">
+          <button class="settings-column-option" type="button" data-favorites-columns="2" aria-pressed="false">2</button>
+          <button class="settings-column-option" type="button" data-favorites-columns="3" aria-pressed="false">3</button>
+          <button class="settings-column-option" type="button" data-favorites-columns="4" aria-pressed="false">4</button>
+          <button class="settings-column-option" type="button" data-favorites-columns="5" aria-pressed="false">5</button>
+        </div>
+      </fieldset>
+      <div class="settings-range-row">
+        <label for="categoryTabHeight">Wysokość przycisków kategorii</label>
+        <input id="categoryTabHeight" type="range" min="36" max="64" step="2" value="46">
+        <output id="categoryTabHeightValue" for="categoryTabHeight">46 px</output>
+      </div>
+      <div class="settings-color-row">
+        <label class="settings-color-label" for="themeColorInput">Kolor przewodni i tło</label>
+        <input id="themeColorInput" class="settings-color-input" type="color" value="#f2f2f2" aria-label="Wybierz kolor motywu">
+        <button id="resetThemeBtn" class="settings-reset-btn" type="button">Resetuj</button>
+      </div>
+    </div>
+  </dialog>
+
   <section id="bigPicture" class="big-picture hidden" aria-label="Odtwarzacz Big Picture" aria-hidden="true">
     <img id="bigPictureBackdrop" class="big-picture-backdrop hidden" alt="" aria-hidden="true">
-    <button id="bigPictureClose" class="icon-btn big-picture-close" title="Zamknij" aria-label="Zamknij tryb Big Picture">×</button>
     <button id="bigPictureRefresh" class="icon-btn big-picture-refresh" title="Odśwież aplikację" aria-label="Odśwież aplikację">↻</button>
     <button id="bigPictureFavorite" class="icon-btn big-picture-favorite" title="Ulubione" aria-label="Dodaj stację do ulubionych">♡</button>
     <div class="big-picture-main">
