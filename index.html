@@ -46,11 +46,12 @@
     min-width: 0;
   }
 
-  .player{display:grid;grid-template-columns:76px minmax(0, 1fr) 48px;gap:12px;align-items:center;flex-shrink:0}
+  .player{display:grid;grid-template-columns:76px minmax(0, 1fr) auto;gap:12px;align-items:center;flex-shrink:0}
   .station-art-wrap{position:relative;width:76px;height:76px;flex-shrink:0}
   .station-art,.station-art-fallback{width:76px;height:76px;border-radius:12px;background:var(--panel2);border:1px solid var(--line)}
   .station-art{object-fit:contain;display:none}
   .station-art-fallback{display:flex;align-items:center;justify-content:center;font-size:34px;color:var(--muted)}
+  .station-art-fallback::before,.big-picture-fallback::before,.card-logo-fallback-bg::before,.fav-logo-fallback-bg::before,.station-art-fallback::after,.big-picture-fallback::after,.card-logo-fallback-bg::after,.fav-logo-fallback-bg::after{content:none}
   
   .station-main{min-width:0;}
   .station-name{font-size:19px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -59,6 +60,50 @@
   
   .icon-btn{width:46px;height:46px;border-radius:12px;border:1px solid var(--line);background:var(--panel);font-size:22px;cursor:pointer;flex-shrink:0}
   .icon-btn.active{font-size:20px}
+  .player-actions{display:flex;gap:6px}
+  .icon-btn svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:middle}
+
+  .big-picture{
+    position:fixed;
+    inset:0;
+    z-index:1000;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:14px;
+    padding:clamp(12px, 4vh, 38px) clamp(20px, 6vw, 64px);
+    background:radial-gradient(ellipse at 50% 38%, #27313d 0%, #141920 42%, #080a0d 100%);
+    text-align:center;
+    isolation:isolate;
+    overflow:hidden;
+  }
+  .big-picture.hidden{display:none}
+  .big-picture-backdrop{position:absolute;inset:-28px;width:calc(100% + 56px);height:calc(100% + 56px);object-fit:cover;filter:blur(28px) brightness(.34) saturate(.8);opacity:.9;pointer-events:none;z-index:0}
+  .big-picture::after{content:"";position:absolute;inset:0;z-index:1;background:linear-gradient(180deg,rgba(5,7,9,.38),rgba(5,7,9,.58));pointer-events:none}
+  .big-picture-close{position:absolute;top:20px;right:20px;z-index:3}
+  .big-picture-refresh{position:absolute;top:20px;right:76px;z-index:3}
+  .big-picture-favorite{position:absolute;top:20px;right:132px;z-index:3}
+  .big-picture-main{position:relative;z-index:2;flex:1;min-height:0;width:100%;max-width:1000px;display:grid;grid-template-columns:auto auto;grid-template-rows:minmax(0, 1fr) auto;justify-content:center;align-items:center;column-gap:clamp(20px, 4vw, 56px);row-gap:12px}
+  .big-picture-art-wrap{justify-self:end;width:min(44vh, 32vw, 360px);height:min(44vh, 32vw, 360px);min-width:min(170px, 30vw);min-height:min(150px, 30vh);display:flex;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:24px;background:var(--panel2);overflow:hidden;flex-shrink:1}
+  .big-picture-art{width:100%;height:100%;object-fit:contain;padding:18px}
+  .big-picture-fallback{display:flex;width:100%;height:100%;align-items:center;justify-content:center;font-size:clamp(80px, 18vw, 150px);color:var(--muted)}
+  .big-picture-info{width:fit-content;max-width:min(520px, 52vw);min-width:0;justify-self:start;text-align:left}
+  .big-picture-name{display:-webkit-box;width:100%;max-width:100%;font-size:40px;font-weight:800;white-space:normal;overflow:hidden;overflow-wrap:anywhere;word-break:normal;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2}
+  .big-picture-meta,.big-picture-status{margin-top:8px;color:var(--muted);font-size:14px}
+  .big-picture-status{color:var(--good)}
+  .big-picture-favorites{position:relative;z-index:2;width:100%;flex:0 0 auto;text-align:left;border-top:1px solid var(--line);padding-top:8px}
+  .big-picture-favorites-title{font-size:11px;color:var(--muted);font-weight:700;margin-bottom:6px}
+  .big-picture-favorites .favorites-bar{display:flex;flex-wrap:nowrap;gap:10px;overflow-x:auto;overflow-y:hidden;max-height:124px;flex:0 0 auto;padding:2px 2px 8px;align-content:initial;touch-action:pan-x;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
+  .big-picture-favorites .fav-chip{width:108px;flex:0 0 108px;aspect-ratio:1;border-radius:10px;touch-action:pan-x}
+  .big-picture-favorites .fav-logo-bg{padding:6px}
+  .big-picture-favorites .fav-overlay{padding:6px 3px 3px}
+  .big-picture-favorites .fav-name{font-size:9px}
+  .big-picture-controls{grid-column:1 / -1;grid-row:2;display:flex;align-items:center;justify-content:center;gap:14px}
+  .big-picture-controls .control-btn{width:58px;height:58px}
+  .big-picture-controls .play-btn{width:76px;height:76px}
+  .big-picture-controls svg{width:28px;height:28px;fill:var(--text)}
+  .big-picture-controls .play-btn svg{width:34px;height:34px}
 
   .controls{display:flex;justify-content:center;align-items:center;gap:16px;flex-shrink:0;padding:4px 0;}
   .control-btn,.play-btn{border:1px solid var(--line);background:var(--panel);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s;}
@@ -67,6 +112,7 @@
   
   .control-btn svg, .play-btn svg { width: 28px; height: 28px; fill: var(--text); }
   .play-btn svg { width: 34px; height: 34px; }
+  .shuffle-btn svg{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 
   .control-btn:active,.play-btn:active,.icon-btn:active,.tab:active,.filter-btn:active,.load-more-btn:active{transform:scale(.95)}
 
@@ -95,7 +141,7 @@
   
   .favorites-bar::-webkit-scrollbar { width: 6px; }
   .favorites-bar::-webkit-scrollbar-thumb { background: var(--line); border-radius: 4px; }
-  
+
   .fav-chip {
     position: relative;
     width: calc((100% - 16px) / 3);
@@ -204,6 +250,10 @@
   }
   .filter-group-title { font-size: 11px; color: var(--muted); font-weight: 700; text-transform: uppercase; }
   .filter-options { display: flex; flex-wrap: wrap; gap: 6px; }
+  #tagFilters{flex-wrap:nowrap;max-width:100%;overflow-x:auto;overflow-y:hidden;padding:2px 2px 8px;touch-action:pan-x pan-y;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  #tagFilters .filter-btn{flex:0 0 auto;white-space:nowrap}
+  #tagFilters::-webkit-scrollbar{height:6px}
+  #tagFilters::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px}
   .filter-btn {
     background: var(--panel2);
     border: 1px solid var(--line);
@@ -270,6 +320,12 @@
     background: var(--panel2);
     color: var(--muted);
     font-size: 42px;
+  }
+  .station-art-fallback,.big-picture-fallback,.card-logo-fallback-bg,.fav-logo-fallback-bg {
+    background-image: url("https://raw.githubusercontent.com/SavenQ/radiodoautka/main/braklogo.png");
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: contain;
   }
 
   .card-overlay {
@@ -344,9 +400,11 @@
     .stations { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
     .player {
-      grid-template-columns: 60px minmax(0, 1fr) 40px;
+      grid-template-columns: 60px minmax(0, 1fr) auto;
       gap: 8px;
     }
+    .player-actions{gap:4px}
+    .player-actions .icon-btn{width:38px;height:40px}
     .station-art-wrap, .station-art, .station-art-fallback {
       width: 60px;
       height: 60px;
@@ -361,10 +419,29 @@
     .play-btn svg { width: 26px; height: 26px; }
 
     .favorites-bar { max-height: 110px; }
-    
-    .fav-chip { width: calc((100% - 16px) / 3); }
+
+    .fav-chip { width: calc((100% - 24px) / 4); }
     
     .tab { padding: 8px 4px; font-size: 12px; }
+    .big-picture{gap:12px}
+    .big-picture-main{column-gap:clamp(20px, 4vw, 36px)}
+    .big-picture-art-wrap{width:min(34vh, 22vw, 300px);height:min(34vh, 30vw, 300px);min-width:min(150px, 30vw);min-height:min(150px, 30vh)}
+    .big-picture-name{font-size:34px}
+    .big-picture-controls{gap:6px}
+    .big-picture-controls .control-btn{width:48px;height:48px}
+    .big-picture-controls .play-btn{width:62px;height:62px}
+
+    .right-panel.filters-scroll{overflow-y:auto;overscroll-behavior-y:contain}
+    .right-panel.filters-scroll .tabs{position:sticky;top:0;z-index:10;background:var(--bg)}
+    .right-panel.filters-scroll .stations-container{flex:0 0 auto;overflow:visible;min-height:auto}
+  }
+
+  @media(max-width:600px){
+    .big-picture-main{grid-template-columns:minmax(0, 1fr);grid-template-rows:minmax(0, 1fr) auto auto;row-gap:10px}
+    .big-picture-art-wrap{justify-self:center;width:min(22vh, 50vw, 180px);height:min(22vh, 50vw, 180px);min-width:min(130px, 40vw);min-height:min(130px, 22vh)}
+    .big-picture-info{width:100%;max-width:90vw;justify-self:center;text-align:center}
+    .big-picture-name{font-size:28px}
+    .big-picture-controls{grid-row:auto}
   }
 </style>
 </head>
@@ -375,7 +452,7 @@
         <section class="player">
           <div class="station-art-wrap">
             <img id="stationLogo" class="station-art" alt="" onerror="this.style.display='none';document.getElementById('stationLogoFallback').style.display='flex'">
-            <div id="stationLogoFallback" class="station-art-fallback">♪</div>
+            <div id="stationLogoFallback" class="station-art-fallback" aria-hidden="true"></div>
           </div>
 
           <div class="station-main">
@@ -384,7 +461,12 @@
             <div id="nowPlaying" class="now-playing">Gotowe do odtwarzania</div>
           </div>
 
-          <button id="favoriteCurrent" class="icon-btn" title="Ulubione" aria-label="Ulubione">♡</button>
+          <div class="player-actions">
+            <button id="favoriteCurrent" class="icon-btn" title="Ulubione" aria-label="Ulubione">♡</button>
+            <button id="bigPictureBtn" class="icon-btn" title="Tryb Big Picture" aria-label="Otwórz tryb Big Picture">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3m13-5h3a2 2 0 0 1 2 2v3M3 16v3a2 2 0 0 0 2 2h3m13-5v3a2 2 0 0 1-2 2h-3"/></svg>
+            </button>
+          </div>
         </section>
 
         <section class="controls">
@@ -399,6 +481,9 @@
           </button>
           <button id="stopBtn" class="control-btn" title="Zatrzymaj">
             <svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>
+          </button>
+          <button id="randomBtn" class="control-btn shuffle-btn" title="Odtwórz losową stację z bieżącej kategorii" aria-label="Odtwórz losową stację z bieżącej kategorii">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m18 14 4 4-4 4M18 2l4 4-4 4M2 18h2.5a5 5 0 0 0 4-2l7-8a5 5 0 0 1 4-2H22M2 6h2.5a5 5 0 0 1 4 2l1 1M14 14l1 1a5 5 0 0 0 4 2H22"/></svg>
           </button>
         </section>
 
@@ -435,6 +520,25 @@
               <button class="filter-btn" data-tag="dance">Dance</button>
               <button class="filter-btn" data-tag="jazz">Jazz</button>
               <button class="filter-btn" data-tag="classical">Klasyczna</button>
+              <button class="filter-btn" data-tag="alternative">Alternatywna</button>
+              <button class="filter-btn" data-tag="ambient">Ambient</button>
+              <button class="filter-btn" data-tag="blues">Blues</button>
+              <button class="filter-btn" data-tag="chillout">Chillout</button>
+              <button class="filter-btn" data-tag="country">Country</button>
+              <button class="filter-btn" data-tag="electronic">Elektroniczna</button>
+              <button class="filter-btn" data-tag="folk">Folk</button>
+              <button class="filter-btn" data-tag="funk">Funk</button>
+              <button class="filter-btn" data-tag="house">House</button>
+              <button class="filter-btn" data-tag="indie">Indie</button>
+              <button class="filter-btn" data-tag="metal">Metal</button>
+              <button class="filter-btn" data-tag="news">Wiadomości</button>
+              <button class="filter-btn" data-tag="reggae">Reggae</button>
+              <button class="filter-btn" data-tag="soul">Soul</button>
+              <button class="filter-btn" data-tag="techno">Techno</button>
+              <button class="filter-btn" data-tag="trance">Trance</button>
+              <button class="filter-btn" data-tag="talk">Talk</button>
+              <button class="filter-btn" data-tag="oldies">Oldies</button>
+              <button class="filter-btn" data-tag="latin">Latino</button>
             </div>
           </div>
           <div>
@@ -469,6 +573,35 @@
 
     <audio id="audio" preload="none"></audio>
   </div>
+
+  <section id="bigPicture" class="big-picture hidden" aria-label="Odtwarzacz Big Picture" aria-hidden="true">
+    <img id="bigPictureBackdrop" class="big-picture-backdrop hidden" alt="" aria-hidden="true">
+    <button id="bigPictureClose" class="icon-btn big-picture-close" title="Zamknij" aria-label="Zamknij tryb Big Picture">×</button>
+    <button id="bigPictureRefresh" class="icon-btn big-picture-refresh" title="Odśwież aplikację" aria-label="Odśwież aplikację">🔄</button>
+    <button id="bigPictureFavorite" class="icon-btn big-picture-favorite" title="Ulubione" aria-label="Dodaj stację do ulubionych">♡</button>
+    <div class="big-picture-main">
+      <div class="big-picture-art-wrap">
+        <img id="bigPictureLogo" class="big-picture-art hidden" alt="Logo stacji">
+        <div id="bigPictureLogoFallback" class="big-picture-fallback" aria-hidden="true"></div>
+      </div>
+      <div class="big-picture-info">
+        <div id="bigPictureName" class="big-picture-name">Wybierz stację</div>
+        <div id="bigPictureMeta" class="big-picture-meta">Radio internetowe</div>
+        <div id="bigPictureStatus" class="big-picture-status">Gotowe do odtwarzania</div>
+      </div>
+      <div class="big-picture-controls" aria-label="Sterowanie odtwarzaniem">
+        <button id="bigPicturePrev" class="control-btn" title="Poprzednia ulubiona" aria-label="Poprzednia ulubiona"><svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg></button>
+        <button id="bigPicturePlay" class="play-btn" title="Odtwórz / Pauza" aria-label="Odtwórz / Pauza"><svg id="bigPicturePlayIcon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
+        <button id="bigPictureNext" class="control-btn" title="Następna ulubiona" aria-label="Następna ulubiona"><svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg></button>
+        <button id="bigPictureStop" class="control-btn" title="Zatrzymaj" aria-label="Zatrzymaj"><svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg></button>
+        <button id="bigPictureRandom" class="control-btn shuffle-btn" title="Odtwórz losową stację z bieżącej kategorii" aria-label="Odtwórz losową stację z bieżącej kategorii"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m18 14 4 4-4 4M18 2l4 4-4 4M2 18h2.5a5 5 0 0 0 4-2l7-8a5 5 0 0 1 4-2H22M2 6h2.5a5 5 0 0 1 4 2l1 1M14 14l1 1a5 5 0 0 0 4 2H22"/></svg></button>
+      </div>
+    </div>
+    <section class="big-picture-favorites" aria-label="Ulubione stacje">
+      <div class="big-picture-favorites-title">ULUBIONE STACJE</div>
+      <div id="bigPictureFavorites" class="favorites-bar"></div>
+    </section>
+  </section>
 
   <script src="app.js"></script>
 </body>
